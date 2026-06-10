@@ -1,0 +1,17 @@
+
+【traceId】
+1780988878660H-f21e904063d111f1aba73d5c58533ff8
+
+【项目】
+福鼎
+
+【已知线索】
+sql除数为0报错，直接定位sql
+
+【约束】
+- 验证前不改代码
+- 取本地代码
+- 给出修改代码prompt
+
+【skil/workflow优化建议】
+1、workflow加入积累经验，参考其中的模式"D:\zoe_work_space\fj-common\docs\workflow.md"

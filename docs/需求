@@ -1,0 +1,11 @@
+项目名称：linx
+
+需求：解决痛点——程序员无法远程排查问题
+场景：医院现场有一台电脑内外网都通，在这台电脑上安装程序linx，本地cursor可以配置mcp连接到这台电脑的linx
+
+通过之前的项目理解业务流程 D:\code\ZoeChat\docs\spec-远程MCP-Server.md
+检索阅读关键文档、skill或者代码，理解ZoeChat是什么项目
+和之前的问答功能做个解耦，linx只用于服务cursor的mcp远程调用，
+本地cursor支持多项目切换
+
+计划先行 先给我一个spec确认

@@ -1,0 +1,9 @@
+node_modules/
+dist/
+linx-data/
+release/
+release-portable/
+scripts/nssm/nssm.exe
+*.log
+linx.env
+.DS_Store

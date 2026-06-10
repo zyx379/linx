@@ -1,0 +1,51 @@
+-- traceId=bbb11b75d5e19b81
+-- 请求参数 presNo=58711814T711 实际为 pres_no=58711814 + queue_no=T711 误拼接
+-- 库中 PRES_NO 为数字类型，pres_no='58711814T711' 会直接导致达梦「无效的数字」
+
+-- 1) 正确处方号下的药品包装规格（pres_no=58711814）
+SELECT DISTINCT
+    dd.drug_code,
+    dd.drug_name,
+    dd.package_spec,
+    dd.PACKAGE_SPEC,
+    AIP.LAY_QUANTITY,
+    AIP.RETURN_QUANTITY,
+    AIP.pres_no
+FROM ZOEAPPLY.APP_OUTP_LAY_DRUG_RECORDS AIP
+JOIN ZOEDICT.DIC_DRUG_DICT DD ON AIP.DRUG_CODE = DD.DRUG_CODE
+WHERE AIP.LAY_DEPT_CODE = '2040100'
+  AND AIP.LAY_DRUG_STATUS_CODE = '8'
+  AND AIP.PRES_NO IN (
+        SELECT a.PRES_NO
+        FROM zoeview.V_DRU_OUTP_AUTO_ACCEPT a
+        INNER JOIN zoeview.V_DRU_OUTP_AUTO_ACCEPT b
+            ON a.PATIENT_ID = b.PATIENT_ID AND a.QUEUE_NO = b.QUEUE_NO
+        WHERE b.pres_no = '58711814'
+    )
+
+-- 2) 复现线上错误：使用错误参数 58711814T711（预期报无效的数字）
+SELECT COUNT(1) AS cnt
+FROM zoeview.V_DRU_OUTP_AUTO_ACCEPT
+WHERE pres_no = '58711814T711'
+
+-- 3) 正确参数下空/0/NULL 的 PACKAGE_SPEC
+SELECT DISTINCT
+    dd.drug_code,
+    dd.drug_name,
+    dd.PACKAGE_SPEC
+FROM ZOEAPPLY.APP_OUTP_LAY_DRUG_RECORDS AIP
+JOIN ZOEDICT.DIC_DRUG_DICT DD ON AIP.DRUG_CODE = DD.DRUG_CODE
+WHERE AIP.LAY_DEPT_CODE = '2040100'
+  AND AIP.LAY_DRUG_STATUS_CODE = '8'
+  AND AIP.PRES_NO IN (
+        SELECT a.PRES_NO
+        FROM zoeview.V_DRU_OUTP_AUTO_ACCEPT a
+        INNER JOIN zoeview.V_DRU_OUTP_AUTO_ACCEPT b
+            ON a.PATIENT_ID = b.PATIENT_ID AND a.QUEUE_NO = b.QUEUE_NO
+        WHERE b.pres_no = '58711814'
+    )
+  AND (
+        dd.PACKAGE_SPEC IS NULL
+        OR TRIM(dd.PACKAGE_SPEC) = ''
+        OR TRIM(dd.PACKAGE_SPEC) = '0'
+    )
