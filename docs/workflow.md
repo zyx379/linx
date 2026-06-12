@@ -2,7 +2,7 @@
 
 > **每次生产排查必读。** 有 traceId 且目的是查现场问题 → 走本工作流，**验证前不改代码**。  
 > 排查 Skill：`.cursor/skills/his-log-diagnosis/SKILL.md`  
-> MCP：`user-zoe-his-mcp`（经 linx 或直连 API）
+> MCP 二选一（由 prompt【连接方式】指定）：`zoe-his-mcp`（直连）/ `zoe-his-linx-mcp`（内网穿透）
 
 ---
 
@@ -10,7 +10,7 @@
 
 ```
 生产排查进度:
-- [ ] 0. 确认项目与连接方式（直连 / 经 linx）
+- [ ] 0. 确认【项目】+【连接方式】并 MCP 探活（连不上即停止）
 - [ ] 1. HTTP 入口 + requestParam（旧架构注意 log-req*）
 - [ ] 2. RPC / 下游（按需）
 - [ ] 3. SQL 执行记录
@@ -29,9 +29,9 @@
 
 ```mermaid
 flowchart TD
-  S0[0a 项目 code 与 prompt 一致?] -->|否| STOP1[停止: 提示改 ZOE_PROJECT_CODE 并重启 MCP]
-  S0 -->|是| S0b[0b MCP 探活 query_log / health]
-  S0b -->|连接失败| STOP2[停止: 默认不排查 列出修复项]
+  S0[0a 按 prompt 选定 MCP + 项目 code] -->|项目不一致| STOP1[停止: 提示改 ZOE_PROJECT_CODE 并重启 MCP]
+  S0 -->|一致| S0b[0b MCP 探活 query_log / health]
+  S0b -->|连接失败| STOP2[停止: 不进入 Step 1-7 列出修复项]
   S0b -->|连接 OK| S1[1 HTTP log-req* 或 log-http*]
   S1 --> S2[2 RPC 按需]
   S2 --> S3[3 SQL 日志]
@@ -50,13 +50,25 @@ flowchart TD
 
 ## Step 0 — 确认项目与连接（门禁，未通过则停止）
 
-排查对象是**某家医院现场**的问题时，Step 0 为硬门禁：**MCP 连不上 → 默认不进入 Step 1–7**；**项目配错 → 提示用户改项目并重启 MCP**，不得用脚本绕过 MCP 继续查日志/库。
+排查对象是**某家医院现场**的问题时，Step 0 为硬门禁：
 
-### 0a. 项目是否一致
+- **MCP 连不上 → 立即停止**，不进入 Step 1–7，**不做**本地代码猜测、不读业务库、不用脚本绕过 MCP。
+- **项目或连接方式配错 → 提示用户改配置并重启 MCP**。
+
+### 0a. 选定 MCP 与项目 code
+
+prompt 须含【项目】；**【连接方式】** 指定本次用哪条 MCP（未写时按「项目对照表」默认连接列推断）：
+
+| prompt【连接方式】 | 使用的 MCP | 说明 |
+|-------------------|------------|------|
+| `直连` | `zoe-his-mcp` | 办公室可直达现场 API/Redis/DB |
+| `内网穿透` | `zoe-his-linx-mcp` | 经 linx relay 穿透内网 |
 
 | 检查 | 动作 |
 |------|------|
-| 用户 prompt 里的【项目】与 `~/.cursor/mcp.json` 中 `ZOE_PROJECT_CODE` 不一致 | **停止排查**，明确告知当前 MCP 项目 code 与应对 code，请用户修改 `ZOE_PROJECT_CODE` 后**重启 MCP** |
+| prompt 未写【连接方式】且对照表该项目只有一种连接 | 按对照表默认 MCP 继续 |
+| prompt【连接方式】与对照表默认不符 | **以 prompt 为准**（现场可能已改走 linx 或改直连） |
+| 【项目】解析出的 code 与**当前选定 MCP** 的 `ZOE_PROJECT_CODE` 不一致 | **停止排查**，告知应对 code，请用户修改**该 MCP 条目** env 后**重启 MCP** |
 | 一致 | 继续 0b |
 
 项目名 → code 对照见下方「项目对照表」（如 漳州二院 → `zzey`，福鼎 → `fjfd`）。
@@ -68,20 +80,19 @@ flowchart TD
 | 结果 | 动作 |
 |------|------|
 | 配置类错误（未设置 API 地址、项目不存在等） | **停止排查**，列出缺失项与应改文件（`mcp.json` / `projects.json` / `.env`） |
-| linx **401**（API Key 错误） | **停止排查**，提示从 `{LINX_BASE_URL}/admin/` 复制最新 `apiKey` 更新 `zoe-his-mcp/projects.json` 对应项，**无需改 mcp.json 项目 code** |
+| linx **401**（API Key 错误） | **停止排查**，提示从 `{LINX_BASE_URL}/admin/` 复制最新 `apiKey` 更新 `linx/mcp/projects-linx.json`，**无需改 mcp.json 项目 code** |
 | linx **health 失败** / relay 超时 / 直连 Redis·DB 超时 | **停止排查**，说明现场网络或 linx 未就绪；**默认不用**本地脚本直连内网代替 MCP |
 | 探活成功但「未找到 traceId」 | 可进入 Step 1–7（属数据问题，非连接问题） |
-
-**允许继续的例外（须用户明确要求）**：仅做本地 `get_code` 读代码、不查日志/业务库。
 
 ### 0c. 连接配置核对
 
 | 检查项 | 说明 |
 |--------|------|
-| `ZOE_PROJECT_CODE` | 当前医院缩写，与 linx 后台项目 id 一致 |
-| 经 linx | `projects.json` 中 `viaLinx` + `linxBaseUrl` + `linxApiKey`（可被 `ZOE_<code>_LINX_*` 覆盖） |
-| 直连 | 配置 `ZOE_<code>_API_BASE_URL`，**不要**设 `VIA_LINX` |
-| 旧架构 | `ZOE_<code>_LOG_ARCHITECTURE=legacy` + `ZOE_<code>_API_LOG_PATH=/log/search` |
+| **选用 MCP** | 以 prompt【连接方式】为准：`直连` → `zoe-his-mcp`；`内网穿透` → `zoe-his-linx-mcp` |
+| `ZOE_PROJECT_CODE` | 写在对应 MCP 的 `mcp.json` env 里，与 prompt【项目】一致 |
+| 经 linx | `linx/mcp/projects-linx.json`（从 `projects-linx.example.json` 复制）填 `linxBaseUrl` + `linxApiKey` |
+| 直连 | `zoe-his-mcp/.env` 配 `ZOE_<code>_API_BASE_URL`，**不要**设 `VIA_LINX` |
+| 旧架构 | `logArchitecture: legacy` + `apiLogPath: /log/search`（在 projects-linx.json 或 env） |
 | 新架构 | 默认 onelink；路径多为 `/log-manage-service/log/search`，HTTP 索引 `log-http*` |
 
 **健康检查**
@@ -182,7 +193,25 @@ flowchart TD
 |------|------|--------|
 | ORA-01476 除数为 0 | SQL 日志完整 UPDATE 语句，找 `/cost` 分母 | 勿只改 Java 未改 Mapper XML |
 
-**viaLinx 项目配置备忘**：`projects.json` 中 `viaLinx: true` 的项须带 `"apiBaseUrl": "http://linx-relay-placeholder"`，否则 MCP 报「未配置 API 基础地址」。
+**viaLinx 项目配置备忘**：`projects-linx.json` 中每项须带 `"apiBaseUrl": "http://linx-relay-placeholder"`，否则 MCP 报「未配置 API 基础地址」。
+
+---
+
+## 双 MCP 配置（直连 vs linx）
+
+| MCP 名称 | 用途 | Cursor 配置要点 |
+|----------|------|-----------------|
+| `zoe-his-mcp` | 办公室可直连（南安/莆田/漳州市医院/公司库） | 指向 `zoe-his-mcp/dist/index.js`，env 设 `ZOE_PROJECT_CODE` |
+| `zoe-his-linx-mcp` | 经 linx 穿透内网现场（福鼎/漳州二院） | 指向 `linx/mcp/index.mjs`，env 设 `ZOE_PROJECT_CODE` + `ZOE_HIS_MCP_HOME` |
+
+**首次配置 linx MCP**
+
+1. `cp linx/mcp/projects-linx.example.json linx/mcp/projects-linx.json`
+2. 从现场 `{linxBaseUrl}/admin/` 复制各项目 `apiKey` 填入 `projects-linx.json`
+3. 将 `mcp/mcp.json.example` 中 `zoe-his-linx-mcp` 段合并进 `~/.cursor/mcp.json`
+4. 重启 Cursor MCP
+
+探活：经 linx 时调用 MCP 工具 `linx_health`，或 `query_log(traceId)`。
 
 ---
 
@@ -217,7 +246,12 @@ git pull origin <分支>
 
 ## 项目切换（只改一个变量）
 
-**`~/.cursor/mcp.json` 只需设置 `ZOE_PROJECT_CODE`**，其余连接信息在 `zoe-his-mcp/projects.json` 中维护（linx URL/API Key、legacy 日志路径等）。改后 **重启 Cursor MCP**。
+**每个 MCP 条目各自设置 `ZOE_PROJECT_CODE`**（直连与 linx 分开维护）：
+
+- **直连** `zoe-his-mcp`：`ZOE_PROJECT_CODE` = `nasyy` / `seyy` / `zzsyy` 等
+- **linx** `zoe-his-linx-mcp`：`ZOE_PROJECT_CODE` = `fjfd` / `zzey` 等
+
+连接细节：直连看 `zoe-his-mcp/.env`；linx 看 `linx/mcp/projects-linx.json`。改后 **重启 Cursor MCP**。
 
 ```json
 "env": {
@@ -232,14 +266,16 @@ DB/Redis 仍从 `zoe-his-mcp/.env` 的 `ZOE_DB_<code>_*` 读取（`query_busines
 
 ### 项目对照表（配置在 projects.json）
 
-| 项目 | code | 架构 | 连接 |
-|------|------|------|------|
-| 福鼎 | `fjfd` | legacy | linx `9081` |
-| 漳州二院 | `zzey` | onelink | linx `9082` |
-| 南安 | `nasyy` | legacy | 直连 |
-| 莆田 | `ptsyy` | legacy | 直连（待补 API） |
-| 漳州市医院 | `zzsyy` | onelink | 直连 |
-| 公司库 | `seyy` | onelink | 直连 |
+| 项目 | code | 架构 | 默认连接 | 默认 MCP |
+|------|------|------|----------|----------|
+| 福鼎 | `fjfd` | legacy | 内网穿透 linx `9081` | zoe-his-linx-mcp |
+| 漳州二院 | `zzey` | onelink | 内网穿透 linx `9082` | zoe-his-linx-mcp |
+| 南安 | `nasyy` | legacy | 直连 | zoe-his-mcp |
+| 莆田 | `fjpt`（linx）/ `ptsyy`（直连） | legacy | 直连或内网穿透（**prompt 指定**） | 见【连接方式】；linx 用 `fjpt` |
+| 漳州市医院 | `zzsyy` | onelink | 直连 | zoe-his-mcp |
+| 公司库 | `seyy` | onelink | 直连 | zoe-his-mcp |
+
+> **默认 MCP 仅作未写【连接方式】时的推断**；prompt 写明 `直连` / `内网穿透` 时一律以 prompt 为准。
 
 单项可被环境变量覆盖（如临时调试 `ZOE_fjfd_VIA_LINX=false`），日常不必在 mcp.json 里写。
 
@@ -281,12 +317,16 @@ DB/Redis 仍从 `zoe-his-mcp/.env` 的 `ZOE_DB_<code>_*` 读取（`query_busines
 | 排查 Skill | `.cursor/skills/his-log-diagnosis/SKILL.md` |
 | MCP 工具说明 | `.cursor/skills/his-log-diagnosis/mcp-tools.md` |
 | 代码定位 | `.cursor/skills/his-log-diagnosis/local-code.md` |
-| MCP 服务 | `D:\code\zoe_debug_app\zoe-his-mcp` |
-| MCP 用户配置 | `~/.cursor/mcp.json`（仅 `ZOE_PROJECT_CODE`） |
-| 项目连接表 | `zoe-his-mcp/projects.json` |
+| MCP 服务（直连） | `zoe-his-mcp` → `D:\code\ZoeDevOps_space\zoe-his-mcp` |
+| MCP 服务（linx） | `linx/mcp/index.mjs`（本仓库） |
+| linx 项目连接表 | `linx/mcp/projects-linx.json`（见 `projects-linx.example.json`） |
+| MCP 配置示例 | `linx/mcp/mcp.json.example` |
+| MCP 用户配置 | `~/.cursor/mcp.json`（双条目：直连 + linx） |
 | linx 现场 API Key | 现场 `linx-data/config.json` → `apiKey` |
 | linx 运维默认口令 | **123**（新装；见 `linx.env.example`） |
+| Oracle relay/db（Thick） | 现场安装 **Oracle Instant Client**，`linx.env` 设 `LINX_ORACLE_CLIENT_LIB_DIR` 后重启 linx；Thin 不支持 `NJS-116/0x939`；自检：`npm run build && node scripts/test-oracle-thick.mjs` |
 | FRP 连通测试 | `npm run test:frp`；漳州二院：`LINX_BASE_URL=http://1.117.191.189:9082 LINX_API_KEY=… node scripts/test-frp-linx.mjs` |
+| 莆田 msgid 探活 | `node scripts/test-fjpt-msgid.mjs` |
 
 ---
 
@@ -299,7 +339,11 @@ DB/Redis 仍从 `zoe-his-mcp/.env` 的 `ZOE_DB_<code>_*` 读取（`query_busines
 （必填）
 
 【项目】
-fjfd / zzey / nasyy / …
+莆田
+
+【连接方式】
+内网穿透
+（填 `直连` 或 `内网穿透` → 分别使用 zoe-his-mcp / zoe-his-linx-mcp）
 
 【已知线索】（可空）
 - 报错时间 / 菜单 / 接口：
@@ -308,9 +352,10 @@ fjfd / zzey / nasyy / …
 【约束】
 - 验证前不改代码
 - 旧架构注意 log-req* 与 /log/search
-- MCP 连不上 → 默认不排查；项目 code 与【项目】不一致 → 提示改 mcp.json 并重启
+- MCP 连不上 → 立即停止，不查日志/库/代码
+- 项目 code 与【项目】不一致 → 提示改对应 MCP 的 mcp.json 并重启
 ```
 
 ---
 
-*版本：2026-06-09（Step 9 经验沉淀 + viaLinx apiBaseUrl 备忘）| 权威文档：`docs/workflow.md`*
+*版本：2026-06-12（【连接方式】指定 MCP；连不上即停止）| 权威文档：`docs/workflow.md`*

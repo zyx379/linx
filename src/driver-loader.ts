@@ -6,6 +6,7 @@ import { createRequire } from 'module';
 import { existsSync } from 'fs';
 import { join } from 'path';
 import { appRoot } from './config.js';
+import { ensureOracleThickMode } from './oracle-thick.js';
 
 function normalizeDriver(mod: unknown): unknown {
   if (mod && typeof mod === 'object' && 'default' in mod) {
@@ -49,4 +50,11 @@ export async function loadDriverModule(spec: 'oracledb' | 'dmdb'): Promise<unkno
   );
   (err as Error & { driverLoadFailures?: string[] }).driverLoadFailures = failures;
   throw err;
+}
+
+/** 加载 oracledb 并启用 Thick（支持 12c 密码校验 0x939） */
+export async function loadOracleDriver(): Promise<unknown> {
+  const oracledb = await loadDriverModule('oracledb');
+  await ensureOracleThickMode(oracledb as Parameters<typeof ensureOracleThickMode>[0]);
+  return oracledb;
 }

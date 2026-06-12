@@ -12,7 +12,8 @@ const adminPassword = process.env.LINX_ADMIN_PASSWORD || '';
 
 async function getJson(path, { auth, token } = {}) {
   const headers = { Accept: 'application/json' };
-  if (auth) headers.Authorization = `Bearer ${auth}`;
+  const bearer = auth || token;
+  if (bearer) headers.Authorization = `Bearer ${bearer}`;
   const res = await fetch(baseUrl + path, { headers });
   const text = await res.text();
   let data;

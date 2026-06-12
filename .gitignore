@@ -6,4 +6,5 @@ release-portable/
 scripts/nssm/nssm.exe
 *.log
 linx.env
+mcp/projects-linx.json
 .DS_Store

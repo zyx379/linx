@@ -232,14 +232,24 @@ ZOE_DB_seyy_SERVICE_NAME=SEYYMDB
 
 > 结构沿用 `zoe-his-mcp/.env`，迁移成本低。
 
-### 7.2 本地 zoe-his-mcp 新增配置
+### 7.2 本地 MCP 配置（架构二）
+
+**双 MCP 条目**（见 `linx/mcp/mcp.json.example`）：
+
+| MCP | 场景 | 配置位置 |
+|-----|------|----------|
+| `zoe-his-mcp` | 办公室直连 | `zoe-his-mcp/.env` + `mcp.json` 的 `ZOE_PROJECT_CODE` |
+| `zoe-his-linx-mcp` | 经 linx 穿透内网 | `linx/mcp/projects-linx.json` + `mcp.json` 的 `ZOE_PROJECT_CODE` |
+
+经 linx 时本地只需 `{linx 地址, API Key, project 列表}`，**不需要**医院 DB 密码（方案甲）。
 
 ```env
-# 标记某 project 走现场 linx 出口
-ZOE_seyy_VIA_LINX=true
-LINX_BASE_URL=http://<现场出口IP>:8080
+# linx MCP 示例（projects-linx.json 或 env 覆盖）
+ZOE_PROJECT_CODE=fjfd
+ZOE_fjfd_VIA_LINX=true
+LINX_BASE_URL=http://<现场FRP>:9081
 LINX_API_KEY=<与现场一致>
-# 本地不再需要医院 DB 密码（方案甲）
+ZOE_fjfd_API_BASE_URL=http://linx-relay-placeholder
 ```
 
 ---
@@ -257,6 +267,7 @@ linx/                              # 现场薄代理 + 运维界面（新建）
 │   ├── auth.ts                    # 对外 relay 的 API Key + IP 白名单
 │   ├── relay-http.ts              # 转发到内网日志 API（按 project 限定目标）
 │   ├── relay-db.ts                # 只读 SQL 执行（oracledb/dmdb，限行/超时）
+│   ├── oracle-thick.ts            # oracledb Thick + Instant Client（12c 密码校验 0x939）
 │   ├── public-ip.ts               # 出口 IP 探测 + 连通性自检
 │   ├── config-store.ts            # 多 project 内网目标 + 凭据（加密落地）
 │   └── config.ts                  # 加载/合并配置
@@ -265,8 +276,14 @@ linx/                              # 现场薄代理 + 运维界面（新建）
 ├── linx.env(.example)
 └── package.json
 
-zoe-his-mcp/                       # 本地（改造，非新建）
-└── 仅改 api-client / db 出口：via-linx 时转调 linx relay
+zoe-his-mcp/                       # 本地直连 MCP（南安/公司库等）
+└── stdio MCP，办公室可达资源直连
+
+linx/mcp/                          # 经 linx 穿透内网的 MCP 启动器（新建）
+├── index.mjs                      # stdio MCP，复用 zoe-his-mcp 工具 + linx relay
+├── projects-linx.json             # 各 viaLinx 项目连接（gitignore，见 example）
+├── fetch-patch.mjs / db-relay.mjs # HTTP/DB 走 linx /relay/*
+└── mcp.json.example               # Cursor 双 MCP 配置示例
 ```
 
 ---

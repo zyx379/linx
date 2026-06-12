@@ -17,6 +17,7 @@
     "pkg:fetch-base": "node scripts/fetch-pkg-base.mjs",
     "test:frp": "node scripts/test-frp-linx.mjs",
     "test:mcp-via-linx": "node scripts/test-mcp-via-linx.mjs",
+    "test:mcp-linx": "node mcp/smoke-test.mjs",
     "dist": "node scripts/package-release.mjs",
     "dist:portable": "node scripts/package-portable.mjs"
   },

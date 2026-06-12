@@ -7,7 +7,7 @@
 import { getRuntimeConfig } from './config-store.js';
 import type { ProjectDbConfig, RelayDbResponse } from './types.js';
 import { RelayError } from './relay-http.js';
-import { loadDriverModule } from './driver-loader.js';
+import { loadDriverModule, loadOracleDriver } from './driver-loader.js';
 
 const DEFAULT_MAX_ROWS = 200;
 const HARD_MAX_ROWS = 5000;
@@ -47,7 +47,7 @@ async function execOracle(
 ): Promise<DbDriverResult> {
   let oracledb: any;
   try {
-    oracledb = await loadDriverModule('oracledb');
+    oracledb = await loadOracleDriver();
   } catch (e) {
     throw new RelayError(501, (e as Error).message);
   }

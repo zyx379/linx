@@ -1,6 +1,16 @@
-# user-zoe-his-mcp 工具参考
+# MCP 工具参考
 
-调用前务必读取 schema：`mcps/user-zoe-his-mcp/tools/<name>.json`
+**直连** `zoe-his-mcp` / **经 linx** `zoe-his-linx-mcp` 工具集相同（linx 版多 `linx_health`）。
+
+调用前读 schema：`mcps/<server-name>/tools/<name>.json`
+
+## linx_health（仅 zoe-his-linx-mcp）
+
+```json
+{}
+```
+
+检查当前项目 linx relay `/health`，Step 0 探活优先用。
 
 ## query_log
 

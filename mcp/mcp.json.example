@@ -1,0 +1,23 @@
+{
+  "mcpServers": {
+    "zoe-his-mcp": {
+      "command": "D:\\dev\\nvm\\v20.18.3\\node.exe",
+      "args": ["D:\\code\\ZoeDevOps_space\\zoe-his-mcp\\dist\\index.js"],
+      "cwd": "D:\\code\\ZoeDevOps_space\\zoe-his-mcp",
+      "env": {
+        "NODE_TLS_REJECT_UNAUTHORIZED": "0",
+        "ZOE_PROJECT_CODE": "nasyy"
+      }
+    },
+    "zoe-his-linx-mcp": {
+      "command": "D:\\dev\\nvm\\v20.18.3\\node.exe",
+      "args": ["D:\\zoe_work_space\\linx\\mcp\\index.mjs"],
+      "cwd": "D:\\zoe_work_space\\linx\\mcp",
+      "env": {
+        "NODE_TLS_REJECT_UNAUTHORIZED": "0",
+        "ZOE_PROJECT_CODE": "fjfd",
+        "ZOE_HIS_MCP_HOME": "D:\\code\\ZoeDevOps_space\\zoe-his-mcp"
+      }
+    }
+  }
+}

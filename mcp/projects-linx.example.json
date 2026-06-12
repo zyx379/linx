@@ -1,0 +1,32 @@
+{
+  "zoeHisMcpHome": "D:\\code\\ZoeDevOps_space\\zoe-his-mcp",
+  "projects": {
+    "fjfd": {
+      "name": "福鼎",
+      "viaLinx": true,
+      "linxBaseUrl": "http://1.117.191.189:9081",
+      "linxApiKey": "PLACEHOLDER_COPY_FROM_LINX_ADMIN",
+      "apiBaseUrl": "http://linx-relay-placeholder",
+      "apiLogPath": "/log/search",
+      "logArchitecture": "legacy"
+    },
+    "zzey": {
+      "name": "漳州二院",
+      "viaLinx": true,
+      "linxBaseUrl": "http://1.117.191.189:9082",
+      "linxApiKey": "PLACEHOLDER_COPY_FROM_LINX_ADMIN",
+      "apiBaseUrl": "http://linx-relay-placeholder",
+      "apiLogPath": "/log-manage-service/log/search",
+      "logArchitecture": "onelink"
+    },
+    "fjpt": {
+      "name": "福建莆田",
+      "viaLinx": true,
+      "linxBaseUrl": "http://1.117.191.189:9084",
+      "linxApiKey": "PLACEHOLDER_COPY_FROM_LINX_ADMIN",
+      "apiBaseUrl": "http://linx-relay-placeholder",
+      "apiLogPath": "/log/search",
+      "logArchitecture": "legacy"
+    }
+  }
+}
